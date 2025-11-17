@@ -90,11 +90,9 @@ function labelFromFolderName(name) {
   const pretty = name.replaceAll("_", " ");
 
   if (type === "match") {
-    // vs_FC_X_2025-10-09 -> Match vs FC X 2025-10-09
     return pretty.replace(/^vs\s*/i, "Match vs ");
   }
   if (type === "training") {
-    // entrainement_2025-10-31 -> Entraînement 2025-10-31
     return pretty.replace(/^entrainement\s*/i, "Entraînement ");
   }
   return pretty;
@@ -112,12 +110,12 @@ async function githubList(path) {
 }
 
 /**********************
- *  AIDE : RÉSO CLUB & ÉQUIPE (insensible à la casse)
+ *  AIDE : RÉSO CLUB & ÉQUIPE
  **********************/
 async function resolveClubFolder(clubLabel) {
   const clubs = await githubList("full");
   const expectedSlug = slugify(clubLabel);
-  return matchFolder(clubs, expectedSlug); // ex: "FC_le_Parc"
+  return matchFolder(clubs, expectedSlug);
 }
 
 async function resolveTeamFolder(clubLabel, teamLabel) {
@@ -126,7 +124,7 @@ async function resolveTeamFolder(clubLabel, teamLabel) {
 
   const teams = await githubList(`full/${realClub}`);
   const expectedTeamSlug = slugify(teamLabel);
-  const realTeam = matchFolder(teams, expectedTeamSlug); // ex: "2eme_futsal" ou "Inter_A"
+  const realTeam = matchFolder(teams, expectedTeamSlug);
 
   return { realClub, realTeam };
 }
@@ -173,7 +171,7 @@ async function loadFavorites() {
 }
 
 /**********************
- *  CHARGEMENT D'ÉQUIPE (TOUS MATCHS / ENTRAÎNEMENTS)
+ *  CHARGEMENT D'ÉQUIPE (TOUS MATCHS)
  **********************/
 async function loadTeamAllMatches(clubLabel, teamLabel) {
   const { realClub, realTeam } = await resolveTeamFolder(clubLabel, teamLabel);
@@ -184,38 +182,30 @@ async function loadTeamAllMatches(clubLabel, teamLabel) {
 
   const cards = [];
 
-  // Images à la racine de l'équipe
+  // Images racine
   const rootImages = entries.filter(e => e.type === 'file' && isImage(e.name));
   rootImages.sort((a, b) => b.name.localeCompare(a.name, undefined, { numeric: true }));
   rootImages.forEach(img => {
     const raw = `https://raw.githubusercontent.com/${GH_OWNER}/${GH_REPO}/${GH_BRANCH}/${base}/${img.name}`;
-    cards.push(
-      makeCard({
-        club: clubLabel,
-        team: teamLabel,
-        rawUrl: raw,
-        kind: null
-      })
-    );
+    cards.push(makeCard({ club: clubLabel, team: teamLabel, rawUrl: raw, kind: null }));
   });
 
-  // Sous-dossiers (matchs + entraînements)
+  // Sous-dossiers
   const dirs = entries.filter(e => e.type === 'dir');
   for (const d of dirs) {
-    const folderType = getFolderType(d.name); // "match" / "training" / null
+    const folderType = getFolderType(d.name);
     const files = await githubList(`${base}/${d.name}`);
     const images = files.filter(f => f.type === 'file' && isImage(f.name));
     images.sort((a, b) => b.name.localeCompare(a.name, undefined, { numeric: true }));
+
     images.forEach(img => {
       const raw = `https://raw.githubusercontent.com/${GH_OWNER}/${GH_REPO}/${GH_BRANCH}/${base}/${d.name}/${img.name}`;
-      cards.push(
-        makeCard({
-          club: clubLabel,
-          team: teamLabel,
-          rawUrl: raw,
-          kind: folderType
-        })
-      );
+      cards.push(makeCard({
+        club: clubLabel,
+        team: teamLabel,
+        rawUrl: raw,
+        kind: folderType
+      }));
     });
   }
 
@@ -223,19 +213,19 @@ async function loadTeamAllMatches(clubLabel, teamLabel) {
 }
 
 /**********************
- *  CHARGEMENT D'UN SEUL MATCH / ENTRAÎNEMENT
+ *  CHARGEMENT D'UN MATCH / ENTRAÎNEMENT
  **********************/
 async function loadTeamOneMatch(clubLabel, teamLabel, matchFolder) {
   const { realClub, realTeam } = await resolveTeamFolder(clubLabel, teamLabel);
   if (!realClub || !realTeam) return [];
 
-  // matchFolder est déjà le vrai nom du dossier (provenant du <select>)
-  const folderType = getFolderType(matchFolder);
   const base = `full/${realClub}/${realTeam}/${matchFolder}`;
-
-  const files  = await githubList(base);
+  const files = await githubList(base);
   const images = files.filter(f => f.type === 'file' && isImage(f.name));
+
   images.sort((a, b) => b.name.localeCompare(a.name, undefined, { numeric: true }));
+
+  const folderType = getFolderType(matchFolder);
 
   return images.map(img => {
     const raw = `https://raw.githubusercontent.com/${GH_OWNER}/${GH_REPO}/${GH_BRANCH}/${base}/${img.name}`;
@@ -249,7 +239,7 @@ async function loadTeamOneMatch(clubLabel, teamLabel, matchFolder) {
 }
 
 /**********************
- *  REMPLISSAGE DU SELECT "MATCH / ENTRAÎNEMENT"
+ *  SELECT MATCH
  **********************/
 async function fillMatchSelect(clubLabel, teamLabel) {
   if (!matchWrap || !matchSelect) return;
@@ -268,28 +258,28 @@ async function fillMatchSelect(clubLabel, teamLabel) {
   }
 
   const base = `full/${realClub}/${realTeam}`;
-  const entries  = await githubList(base);
-  const matchDirs = entries.filter(e => e.type === 'dir');
+  const entries = await githubList(base);
+  const dirs = entries.filter(e => e.type === 'dir');
 
-  if (matchDirs.length === 0) {
+  if (!dirs.length) {
     matchWrap.style.display = 'none';
     return;
   }
 
-  matchDirs.sort((a, b) => b.name.localeCompare(a.name, undefined, { numeric: true }));
+  dirs.sort((a, b) => b.name.localeCompare(a.name, undefined, { numeric: true }));
 
-  for (const d of matchDirs) {
+  dirs.forEach(d => {
     const opt = document.createElement('option');
-    opt.value = d.name; // on garde le nom EXACT du dossier
+    opt.value = d.name;
     opt.textContent = labelFromFolderName(d.name);
     matchSelect.appendChild(opt);
-  }
+  });
 
   matchWrap.style.display = 'block';
 }
 
 /**********************
- *  AFFICHAGE DES PHOTOS
+ *  AFFICHAGE GALERIE
  **********************/
 function clearGallery() {
   galleryEl.innerHTML = "";
@@ -297,26 +287,83 @@ function clearGallery() {
 
 function showInfoMessage(html) {
   galleryEl.innerHTML = `
-    <div style="grid-column:1/-1; padding:1rem; border:1px dashed #c0b28a; border-radius:8px; background:#fff;">
+    <div style="grid-column:1/-1; padding:1rem; border:1px dashed #c0b28a; background:#fff; border-radius:8px;">
       ${html}
     </div>`;
 }
 
 async function showDefault() {
   clearGallery();
-  const favCards = await loadFavorites();
-  if (favCards.length) {
-    favCards.forEach(c => galleryEl.appendChild(c));
-  } else {
+  const fav = await loadFavorites();
+  if (!fav.length) {
     showInfoMessage(`
-      Aucune image détectée.<br>
-      Ajoute des photos dans <code>full/favorites</code> ou dans
-      <code>full/&lt;Club&gt;/&lt;Équipe&gt;/vs_Adversaire_YYYY-MM-DD</code>
-      ou <code>full/&lt;Club&gt;/&lt;Équipe&gt;/entrainement_YYYY-MM-DD</code>.
+      Aucune image pour l’instant.<br>
+      Mets des photos dans <code>full/favorites</code>.
     `);
+    return;
   }
+  fav.forEach(c => galleryEl.appendChild(c));
 }
 
+/**********************
+ *  LIGHTBOX (plein écran)
+ **********************/
+let lightbox = document.getElementById("lightbox");
+let lightboxImg = document.getElementById("lightbox-img");
+let btnClose = document.getElementById("lightbox-close");
+let btnPrev = document.getElementById("lightbox-prev");
+let btnNext = document.getElementById("lightbox-next");
+
+let galleryImages = [];
+let currentIndex = 0;
+
+function enableLightbox() {
+  galleryImages = Array.from(document.querySelectorAll(".gallery-grid img"));
+  galleryImages.forEach((img, index) => {
+    img.addEventListener("click", () => {
+      currentIndex = index;
+      openLightbox(img.src);
+    });
+  });
+}
+
+function openLightbox(src) {
+  lightbox.style.display = "flex";
+  lightboxImg.src = src;
+}
+
+function closeLightbox() {
+  lightbox.style.display = "none";
+}
+
+function showNext() {
+  currentIndex = (currentIndex + 1) % galleryImages.length;
+  lightboxImg.src = galleryImages[currentIndex].src;
+}
+
+function showPrev() {
+  currentIndex = (currentIndex - 1 + galleryImages.length) % galleryImages.length;
+  lightboxImg.src = galleryImages[currentIndex].src;
+}
+
+// événements lightbox
+btnClose.onclick = closeLightbox;
+btnNext.onclick = showNext;
+btnPrev.onclick = showPrev;
+
+lightbox.addEventListener("click", e => {
+  if (e.target === lightbox) closeLightbox();
+});
+
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape") closeLightbox();
+  if (e.key === "ArrowRight") showNext();
+  if (e.key === "ArrowLeft") showPrev();
+});
+
+/**********************
+ *  FILTRES
+ **********************/
 async function applyFilters() {
   const club  = clubSelect ? clubSelect.value : 'all';
   const team  = teamSelect ? teamSelect.value : 'all';
@@ -324,15 +371,13 @@ async function applyFilters() {
 
   clearGallery();
 
-  // Club & équipe = "Tous"
   if (club === 'all' && team === 'all') {
     await showDefault();
+    setTimeout(enableLightbox, 200);
     return;
   }
 
-  // Club choisi, équipe = toutes
   if (club !== 'all' && team === 'all') {
-    await fillMatchSelect('all', 'all');
     let total = 0;
     const teams = STRUCTURE[club] || [];
     for (const t of teams) {
@@ -340,42 +385,37 @@ async function applyFilters() {
       cards.forEach(c => galleryEl.appendChild(c));
       total += cards.length;
     }
-    if (total === 0) showInfoMessage(`Aucune photo trouvée pour ce club.`);
+    if (!total) showInfoMessage("Aucune photo pour ce club.");
+    setTimeout(enableLightbox, 200);
     return;
   }
 
-  // Club + équipe
   if (club !== 'all' && team !== 'all') {
     if (match !== '_all_') {
       const cards = await loadTeamOneMatch(club, team, match);
-      if (cards.length === 0) {
-        showInfoMessage(`Aucune photo trouvée pour ce match ou cet entraînement.`);
-      } else {
-        cards.forEach(c => galleryEl.appendChild(c));
-      }
+      if (!cards.length) showInfoMessage("Aucune photo pour ce match.");
+      cards.forEach(c => galleryEl.appendChild(c));
     } else {
       const cards = await loadTeamAllMatches(club, team);
-      if (cards.length === 0) {
-        showInfoMessage(`Aucune photo trouvée pour cette équipe.`);
-      } else {
-        cards.forEach(c => galleryEl.appendChild(c));
-      }
+      if (!cards.length) showInfoMessage("Aucune photo pour cette équipe.");
+      cards.forEach(c => galleryEl.appendChild(c));
     }
+    setTimeout(enableLightbox, 200);
     return;
   }
 
-  // Équipe choisie, club = tous
+  // equipe seule
   if (club === 'all' && team !== 'all') {
-    await fillMatchSelect('all', 'all');
     let total = 0;
     for (const c of Object.keys(STRUCTURE)) {
-      if ((STRUCTURE[c] || []).includes(team)) {
+      if (STRUCTURE[c].includes(team)) {
         const cards = await loadTeamAllMatches(c, team);
         cards.forEach(card => galleryEl.appendChild(card));
         total += cards.length;
       }
     }
-    if (total === 0) showInfoMessage(`Aucune photo trouvée pour cette équipe.`);
+    if (!total) showInfoMessage("Aucune photo pour cette équipe.");
+    setTimeout(enableLightbox, 200);
   }
 }
 
@@ -384,15 +424,16 @@ async function applyFilters() {
  **********************/
 async function init() {
   await showDefault();
+  setTimeout(enableLightbox, 200);
 
   if (clubSelect) clubSelect.addEventListener('change', async () => {
-    if (matchSelect) matchSelect.value = '_all_';
+    matchSelect.value = '_all_';
     await fillMatchSelect(clubSelect.value, teamSelect.value);
     await applyFilters();
   });
 
   if (teamSelect) teamSelect.addEventListener('change', async () => {
-    if (matchSelect) matchSelect.value = '_all_';
+    matchSelect.value = '_all_';
     await fillMatchSelect(clubSelect.value, teamSelect.value);
     await applyFilters();
   });
@@ -403,7 +444,7 @@ async function init() {
 init();
 
 /**********************
- *  FOOTER YEAR
+ *  FOOTER ANNÉE
  **********************/
 const y = document.getElementById('year');
 if (y) y.textContent = new Date().getFullYear();
