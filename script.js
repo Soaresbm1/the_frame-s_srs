@@ -2,7 +2,7 @@
  *  CONFIG GITHUB
  **********************/
 const GH_OWNER  = "Soaresbm1";
-const GH_REPO = "the_frame-s_srs";
+const GH_REPO   = "the_frame-s_srs";
 const GH_BRANCH = "main";
 
 /**********************
@@ -60,47 +60,6 @@ function isImage(name) {
   return /\.(jpe?g|png|webp)$/i.test(name);
 }
 
-/**
- * Détermine le type de dossier : "match", "entrainement" ou null
- */
-function getMatchTypeFromFolder(folderName) {
-  const normalized = folderName
-    .toLowerCase()
-    .replaceAll("é", "e")
-    .replaceAll("è", "e");
-
-  if (normalized.startsWith("entrainement")) return "entrainement";
-  if (normalized.startsWith("vs"))           return "match";
-  return null;
-}
-
-/**
- * Crée un joli label pour la liste des matchs / entraînements
- * ex: "vs_FC_X_2025-11-01" → "Match vs FC X 2025-11-01"
- *     "entrainement_2025-11-01" → "Entraînement 2025-11-01"
- */
-function labelFromFolderName(folderName) {
-  const type = getMatchTypeFromFolder(folderName);
-  const cleaned = folderName.replaceAll("_", " ");
-
-  if (type === "entrainement") {
-    const base = "entrainement";
-    const idx = cleaned.toLowerCase().indexOf(base);
-    const rest = idx >= 0 ? cleaned.slice(idx + base.length).trim() : "";
-    return rest ? `Entraînement ${rest}` : "Entraînement";
-  }
-
-  if (type === "match") {
-    const base = "vs";
-    const idx = cleaned.toLowerCase().indexOf(base);
-    const rest = idx >= 0 ? cleaned.slice(idx + base.length).trim() : "";
-    return rest ? `Match vs ${rest}` : "Match";
-  }
-
-  // fallback
-  return cleaned;
-}
-
 async function githubList(path) {
   const url = `https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/contents/${path}?ref=${GH_BRANCH}`;
   const res = await fetch(url);
@@ -109,28 +68,17 @@ async function githubList(path) {
   return Array.isArray(data) ? data : [];
 }
 
-/**
- * Création d'une carte photo
- * kind = "match" | "entrainement" | null
- */
-function makeCard({ club, team, filename, rawUrl, badge, kind }) {
+function makeCard({ club, team, filename, rawUrl, badge }) {
   const fig = document.createElement('figure');
   fig.className = 'card photo';
   if (club) fig.dataset.club = club;
   if (team) fig.dataset.team = team;
-  if (kind) fig.dataset.kind = kind;
-
-  // si badge non fourni, on peut en déduire un depuis kind
-  let finalBadge = badge;
-  if (!finalBadge && kind === "match") finalBadge = "Match";
-  if (!finalBadge && kind === "entrainement") finalBadge = "Entraînement";
-
   fig.innerHTML = `
     <img src="${rawUrl}" alt="${club ? club : 'Favoris'} ${team || ''}" loading="lazy">
     <figcaption>
       <div>
         <strong>${club ? `${club} – ${team}` : 'Favoris'}</strong>
-        ${finalBadge ? `<span style="margin-left:.4rem;font-size:.8rem;opacity:.7">${finalBadge}</span>` : ""}
+        ${badge ? `<span style="margin-left:.4rem;font-size:.8rem;opacity:.7">${badge}</span>` : ""}
       </div>
       <a class="btn-sm" href="${rawUrl}" download>Télécharger</a>
     </figcaption>
@@ -160,7 +108,7 @@ async function loadFavorites() {
 
   return images.map(img => {
     const raw = `https://raw.githubusercontent.com/${GH_OWNER}/${GH_REPO}/${GH_BRANCH}/${favPath}/${img.name}`;
-    return makeCard({ club: null, team: null, filename: img.name, rawUrl: raw, badge: "⭐", kind: null });
+    return makeCard({ club: null, team: null, filename: img.name, rawUrl: raw, badge: "⭐" });
   });
 }
 
@@ -177,39 +125,20 @@ async function loadTeamAllMatches(clubLabel, teamLabel) {
 
   let cards = [];
 
-  // images à la racine de l'équipe
   const rootImages = entries.filter(e => e.type === 'file' && isImage(e.name));
   rootImages.sort((a, b) => b.name.localeCompare(a.name, undefined, { numeric: true }));
   rootImages.forEach(img => {
     const raw = `https://raw.githubusercontent.com/${GH_OWNER}/${GH_REPO}/${GH_BRANCH}/${base}/${img.name}`;
-    cards.push(
-      makeCard({
-        club: clubLabel,
-        team: teamLabel,
-        filename: img.name,
-        rawUrl: raw,
-        kind: null
-      })
-    );
+    cards.push(makeCard({ club: clubLabel, team: teamLabel, filename: img.name, rawUrl: raw }));
   });
 
-  // sous-dossiers (matchs + entraînements)
   for (const d of matchDirs) {
-    const folderType = getMatchTypeFromFolder(d.name); // "match" / "entrainement" / null
     const files = await githubList(`${base}/${d.name}`);
     const images = files.filter(f => f.type === 'file' && isImage(f.name));
     images.sort((a, b) => b.name.localeCompare(a.name, undefined, { numeric: true }));
     images.forEach(img => {
       const raw = `https://raw.githubusercontent.com/${GH_OWNER}/${GH_REPO}/${GH_BRANCH}/${base}/${d.name}/${img.name}`;
-      cards.push(
-        makeCard({
-          club: clubLabel,
-          team: teamLabel,
-          filename: img.name,
-          rawUrl: raw,
-          kind: folderType
-        })
-      );
+      cards.push(makeCard({ club: clubLabel, team: teamLabel, filename: img.name, rawUrl: raw }));
     });
   }
 
@@ -225,17 +154,9 @@ async function loadTeamOneMatch(clubLabel, teamLabel, matchFolder) {
   const images = files.filter(f => f.type === 'file' && isImage(f.name));
   images.sort((a, b) => b.name.localeCompare(a.name, undefined, { numeric: true }));
 
-  const folderType = getMatchTypeFromFolder(matchFolder);
-
   return images.map(img => {
     const raw = `https://raw.githubusercontent.com/${GH_OWNER}/${GH_REPO}/${GH_BRANCH}/${folder}/${img.name}`;
-    return makeCard({
-      club: clubLabel,
-      team: teamLabel,
-      filename: img.name,
-      rawUrl: raw,
-      kind: folderType
-    });
+    return makeCard({ club: clubLabel, team: teamLabel, filename: img.name, rawUrl: raw });
   });
 }
 
@@ -245,7 +166,7 @@ async function loadTeamOneMatch(clubLabel, teamLabel, matchFolder) {
 async function fillMatchSelect(clubLabel, teamLabel) {
   if (!matchWrap || !matchSelect) return;
 
-  matchSelect.innerHTML = `<option value="_all_">Tous les matchs / entraînements</option>`;
+  matchSelect.innerHTML = `<option value="_all_">Tous les matchs</option>`;
 
   if (clubLabel === 'all' || teamLabel === 'all') {
     matchWrap.style.display = 'none';
@@ -267,9 +188,10 @@ async function fillMatchSelect(clubLabel, teamLabel) {
   matchDirs.sort((a, b) => b.name.localeCompare(a.name, undefined, { numeric: true }));
 
   for (const d of matchDirs) {
+    const label = d.name.replaceAll("_", " ");
     const opt = document.createElement('option');
     opt.value = d.name;
-    opt.textContent = labelFromFolderName(d.name);
+    opt.textContent = label;
     matchSelect.appendChild(opt);
   }
 
@@ -288,26 +210,23 @@ async function showDefault() {
     showInfoMessage(`
       Aucune image détectée.<br>
       Ajoute des photos dans <code>full/favorites</code> ou dans
-      <code>full/&lt;Club&gt;/&lt;Équipe&gt;/vs_Adversaire_YYYY-MM-DD</code>
-      ou <code>entrainement_YYYY-MM-DD</code>.
+      <code>full/&lt;Club&gt;/&lt;Équipe&gt;/vs_Adversaire_YYYY-MM-DD</code>.
     `);
   }
 }
 
 async function applyFilters() {
-  const club  = clubSelect ? clubSelect.value : 'all';
-  const team  = teamSelect ? teamSelect.value : 'all';
+  const club = clubSelect ? clubSelect.value : 'all';
+  const team = teamSelect ? teamSelect.value : 'all';
   const match = matchSelect ? matchSelect.value : '_all_';
 
   clearGallery();
 
-  // Aucun filtre → favoris
   if (club === 'all' && team === 'all') {
     await showDefault();
     return;
   }
 
-  // Club choisi, équipe = toutes
   if (club !== 'all' && team === 'all') {
     await fillMatchSelect('all','all');
     let total = 0;
@@ -321,12 +240,11 @@ async function applyFilters() {
     return;
   }
 
-  // Club + équipe
   if (club !== 'all' && team !== 'all') {
     if (match !== '_all_') {
       const cards = await loadTeamOneMatch(club, team, match);
       if (cards.length === 0) {
-        showInfoMessage(`Aucune photo trouvée pour ce match ou cet entraînement.`);
+        showInfoMessage(`Aucune photo trouvée pour ce match ou cette équipe.`);
       } else {
         cards.forEach(c => galleryEl.appendChild(c));
       }
@@ -341,7 +259,6 @@ async function applyFilters() {
     return;
   }
 
-  // Équipe choisie, club = tous
   if (club === 'all' && team !== 'all') {
     await fillMatchSelect('all','all');
     let total = 0;
