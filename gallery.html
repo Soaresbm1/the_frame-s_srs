@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Galerie – The_frame's_srs</title>
+  <link rel="stylesheet" href="style.css" />
+  <script defer src="script.js"></script>
+</head>
+<body>
+  <header class="site-header">
+    <h1 class="brand">The_frame's_srs</h1>
+    <nav class="nav">
+      <a href="index.html">Accueil</a>
+      <a href="gallery.html" class="active">Galerie</a>
+      <a href="index.html#video">Vidéo</a>
+    </nav>
+  </header>
+
+  <main class="gallery-layout">
+  <aside class="filters">
+    <button class="accordion" type="button">Filtres</button>
+    <div class="panel">
+      <label for="club-select">🏟️ Club</label>
+      <select id="club-select">
+        <option value="all">Tous les clubs</option>
+        <option value="FC Le Parc">FC Le Parc</option>
+        <option value="FC La Chaux-de-Fonds">FC La Chaux-de-Fonds</option>
+      </select>
+
+      <label for="team-select">⚽ Équipe</label>
+      <select id="team-select">
+        <option value="all">Toutes les équipes</option>
+        <optgroup label="FC Le Parc">
+          <option value="Inter A">Inter A</option>
+          <option value="Juniors B">Juniors B</option>
+          <option value="2ème Futsal">2ème Futsal</option>
+        </optgroup>
+        <optgroup label="FC La Chaux-de-Fonds">
+          <option value="Inter A">Inter A</option>
+          <option value="Juniors B">Juniors B</option>
+        </optgroup>
+      </select>
+
+      <!-- Sélecteur Match -->
+      <div id="match-container" style="display:none;">
+        <label for="match-select">📅 Match</label>
+        <select id="match-select">
+          <option value="__all__">Tous les matchs</option>
+        </select>
+      </div>
+    </div>
+  </aside>
+
+  <!-- GALERIE -->
+  <section class="gallery-grid" id="gallery"></section>
+</main>
+
+<footer class="site-footer">
+  <small>© <span id="year"></span> The_frame’s_srs – Football & Futsal</small>
+</footer>
+</body>
+</html>
