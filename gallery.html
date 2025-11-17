@@ -19,43 +19,56 @@
   </header>
 
   <main class="gallery-layout">
-    <aside class="filters">
-      <button class="accordion" type="button">Filtres</button>
-      <div class="panel">
+  <aside class="filters">
+    <button class="accordion" type="button">Filtres</button>
+    <div class="panel">
 
-        <label for="club-select">🏟️ Club</label>
-        <select id="club-select">
-          <option value="all">Tous les clubs</option>
-          <option value="FC Le Parc">FC Le Parc</option>
-          <option value="FC La Chaux-de-Fonds">FC La Chaux-de-Fonds</option>
-        </select>
+      <label for="club-select">🏟️ Club</label>
+      <select id="club-select">
+        <option value="all">Tous les clubs</option>
+        <option value="FC Le Parc">FC Le Parc</option>
+        <option value="FC La Chaux-de-Fonds">FC La Chaux-de-Fonds</option>
+      </select>
 
-        <label for="team-select">⚽ Équipe</label>
-        <select id="team-select">
-          <option value="all">Toutes les équipes</option>
+      <label for="team-select">⚽ Équipe</label>
+      <select id="team-select">
+        <option value="all">Toutes les équipes</option>
 
-          <optgroup label="FC Le Parc">
-            <option value="Inter A">Inter A</option>
-            <option value="Juniors B">Juniors B</option>
-            <option value="2ème Futsal">2ème Futsal</option>
-          </optgroup>
+        <optgroup label="FC Le Parc">
+          <option value="Inter A">Inter A</option>
+          <option value="Juniors B">Juniors B</option>
+          <option value="2ème Futsal">2ème Futsal</option>
+        </optgroup>
 
-          <optgroup label="FC La Chaux-de-Fonds">
-            <option value="Inter A">Inter A</option>
-            <option value="Juniors B">Juniors B</option>
-          </optgroup>
+        <optgroup label="FC La Chaux-de-Fonds">
+          <option value="Inter A">Inter A</option>
+          <option value="Juniors B">Juniors B</option>
+        </optgroup>
 
-        </select>
+      </select>
 
-        <div id="match-container" style="display:none;">
-          <label for="match-select">📅 Match / Entraînement</label>
-          <select id="match-select"></select>
-        </div>
+      <div id="match-container" style="display:none;">
+        <label for="match-select">📅 Match / Entraînement</label>
+        <select id="match-select"></select>
       </div>
-    </aside>
+    </div>
+  </aside>
 
+  <section style="flex:1; display:flex; flex-direction:column; gap:10px;">
+    <!-- Barre outils galerie -->
+    <div class="gallery-tools">
+      <button id="toggle-user-favs" type="button" class="btn-sm">
+        Afficher mes favoris ❤️
+      </button>
+    </div>
+
+    <!-- GALERIE -->
     <section class="gallery-grid" id="gallery"></section>
-  </main>
+  </section>
+</main>
+
+<!-- (le footer et la lightbox restent comme tu les as déjà) -->
+
 
   <footer class="site-footer">
     <small>© <span id="year"></span> The_frame’s_srs – Football & Futsal</small>

@@ -339,3 +339,39 @@ figcaption {
 .lightbox-btn:hover {
   opacity: 1;
 }
+
+/* Barre outils au-dessus de la galerie */
+.gallery-tools {
+  display:flex;
+  justify-content:flex-end;
+  align-items:center;
+  margin-bottom:4px;
+}
+
+/* Bouton favoris utilisateur */
+.btn-toggle-favs-active {
+  background:#b71c1c;
+  color:#fff;
+}
+
+/* Bouton cœur sur les cartes */
+.photo-actions {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:8px;
+  margin-top:6px;
+}
+
+.fav-btn {
+  border:none;
+  background:transparent;
+  cursor:pointer;
+  font-size:1.1rem;
+  line-height:1;
+  padding:2px 4px;
+}
+
+.fav-btn.is-active {
+  transform:scale(1.05);
+}

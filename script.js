@@ -33,6 +33,7 @@ const teamSelect  = document.getElementById('team-select');
 const matchWrap   = document.getElementById('match-container');
 const matchSelect = document.getElementById('match-select');
 const galleryEl   = document.getElementById('gallery');
+const toggleFavsBtn = document.getElementById('toggle-user-favs');
 
 /**********************
  *  OUTILS GÉNÉRAUX
@@ -61,25 +62,53 @@ function isImage(name) {
   return /\.(jpe?g|png|webp)$/i.test(name);
 }
 
-/**
- * Trouve, dans une liste d'entries GitHub, celui dont le slug
- * correspond à expectedSlug, en ignorant les majuscules/minuscules.
- */
 function matchFolder(entries, expectedSlug) {
   for (const entry of entries) {
     const realSlug = slugify(entry.name);
     if (realSlug === expectedSlug) {
-      return entry.name; // nom exact du dossier tel qu'il est sur GitHub
+      return entry.name;
     }
   }
   return null;
 }
 
 /**********************
+ *  GESTION FAVORIS UTILISATEUR (localStorage)
+ **********************/
+const LS_FAV_KEY = "tfs_user_favorites";
+let userFavorites = new Set();
+let showOnlyFavs = false;
+
+function loadUserFavorites() {
+  try {
+    const raw = localStorage.getItem(LS_FAV_KEY);
+    if (!raw) return;
+    const arr = JSON.parse(raw);
+    if (Array.isArray(arr)) {
+      userFavorites = new Set(arr);
+    }
+  } catch (e) {
+    console.warn("Impossible de charger les favoris", e);
+  }
+}
+
+function saveUserFavorites() {
+  try {
+    localStorage.setItem(LS_FAV_KEY, JSON.stringify([...userFavorites]));
+  } catch (e) {
+    console.warn("Impossible d’enregistrer les favoris", e);
+  }
+}
+
+function isFavorite(id) {
+  return userFavorites.has(id);
+}
+
+/**********************
  *  TYPE DE DOSSIER (MATCH / ENTRAÎNEMENT)
  **********************/
 function getFolderType(name) {
-  const s = slugify(name); // on normalise
+  const s = slugify(name);
   if (s.startsWith("vs_")) return "match";
   if (s.startsWith("entrainement_")) return "training";
   return null;
@@ -110,7 +139,7 @@ async function githubList(path) {
 }
 
 /**********************
- *  AIDE : RÉSO CLUB & ÉQUIPE
+ *  RÉSO CLUB & ÉQUIPE
  **********************/
 async function resolveClubFolder(clubLabel) {
   const clubs = await githubList("full");
@@ -139,8 +168,10 @@ function makeCard({ club, team, rawUrl, badge, kind }) {
 
   const fig = document.createElement('figure');
   fig.className = 'card photo';
+  fig.dataset.id = rawUrl;
 
   const title = club && team ? `${club} – ${team}` : (club || "Favoris");
+  const favActive = isFavorite(rawUrl);
 
   fig.innerHTML = `
     <img src="${rawUrl}" alt="${title}" loading="lazy">
@@ -149,14 +180,26 @@ function makeCard({ club, team, rawUrl, badge, kind }) {
         <strong>${title}</strong>
         ${finalBadge ? `<span style="margin-left:.4rem;font-size:.8rem;opacity:.7">${finalBadge}</span>` : ""}
       </div>
-      <a class="btn-sm" href="${rawUrl}" download>Télécharger</a>
+      <div class="photo-actions">
+        <a class="btn-sm" href="${rawUrl}" download>Télécharger</a>
+        <button 
+          class="fav-btn ${favActive ? "is-active" : ""}" 
+          type="button" 
+          data-id="${rawUrl}" 
+          data-club="${club || ""}" 
+          data-team="${team || ""}"
+          aria-label="Ajouter aux favoris"
+        >
+          ${favActive ? "❤️" : "🤍"}
+        </button>
+      </div>
     </figcaption>
   `;
   return fig;
 }
 
 /**********************
- *  FAVORIS
+ *  FAVORIS (dossier full/favorites)
  **********************/
 async function loadFavorites() {
   const favPath = `full/favorites`;
@@ -166,7 +209,7 @@ async function loadFavorites() {
 
   return images.map(img => {
     const raw = `https://raw.githubusercontent.com/${GH_OWNER}/${GH_REPO}/${GH_BRANCH}/${favPath}/${img.name}`;
-    return makeCard({ club: null, team: null, rawUrl: raw, badge: "⭐", kind: null });
+    return makeCard({ club: "Favoris", team: "", rawUrl: raw, badge: "⭐", kind: null });
   });
 }
 
@@ -182,7 +225,6 @@ async function loadTeamAllMatches(clubLabel, teamLabel) {
 
   const cards = [];
 
-  // Images racine
   const rootImages = entries.filter(e => e.type === 'file' && isImage(e.name));
   rootImages.sort((a, b) => b.name.localeCompare(a.name, undefined, { numeric: true }));
   rootImages.forEach(img => {
@@ -190,7 +232,6 @@ async function loadTeamAllMatches(clubLabel, teamLabel) {
     cards.push(makeCard({ club: clubLabel, team: teamLabel, rawUrl: raw, kind: null }));
   });
 
-  // Sous-dossiers
   const dirs = entries.filter(e => e.type === 'dir');
   for (const d of dirs) {
     const folderType = getFolderType(d.name);
@@ -222,7 +263,6 @@ async function loadTeamOneMatch(clubLabel, teamLabel, matchFolder) {
   const base = `full/${realClub}/${realTeam}/${matchFolder}`;
   const files = await githubList(base);
   const images = files.filter(f => f.type === 'file' && isImage(f.name));
-
   images.sort((a, b) => b.name.localeCompare(a.name, undefined, { numeric: true }));
 
   const folderType = getFolderType(matchFolder);
@@ -300,13 +340,15 @@ async function showDefault() {
       Aucune image pour l’instant.<br>
       Mets des photos dans <code>full/favorites</code>.
     `);
+    afterGalleryRender();
     return;
   }
   fav.forEach(c => galleryEl.appendChild(c));
+  afterGalleryRender();
 }
 
 /**********************
- *  LIGHTBOX (plein écran)
+ *  LIGHTBOX
  **********************/
 let lightbox = document.getElementById("lightbox");
 let lightboxImg = document.getElementById("lightbox-img");
@@ -328,32 +370,37 @@ function enableLightbox() {
 }
 
 function openLightbox(src) {
+  if (!lightbox) return;
   lightbox.style.display = "flex";
   lightboxImg.src = src;
 }
 
 function closeLightbox() {
+  if (!lightbox) return;
   lightbox.style.display = "none";
 }
 
 function showNext() {
+  if (!galleryImages.length) return;
   currentIndex = (currentIndex + 1) % galleryImages.length;
   lightboxImg.src = galleryImages[currentIndex].src;
 }
 
 function showPrev() {
+  if (!galleryImages.length) return;
   currentIndex = (currentIndex - 1 + galleryImages.length) % galleryImages.length;
   lightboxImg.src = galleryImages[currentIndex].src;
 }
 
-// événements lightbox
-btnClose.onclick = closeLightbox;
-btnNext.onclick = showNext;
-btnPrev.onclick = showPrev;
+if (btnClose) btnClose.onclick = closeLightbox;
+if (btnNext) btnNext.onclick = showNext;
+if (btnPrev) btnPrev.onclick = showPrev;
 
-lightbox.addEventListener("click", e => {
-  if (e.target === lightbox) closeLightbox();
-});
+if (lightbox) {
+  lightbox.addEventListener("click", e => {
+    if (e.target === lightbox) closeLightbox();
+  });
+}
 
 document.addEventListener("keydown", e => {
   if (e.key === "Escape") closeLightbox();
@@ -362,7 +409,79 @@ document.addEventListener("keydown", e => {
 });
 
 /**********************
- *  FILTRES
+ *  FAVORIS UTILISATEUR : UI
+ **********************/
+function wireFavoriteButtons() {
+  const buttons = document.querySelectorAll(".fav-btn");
+  buttons.forEach(btn => {
+    btn.onclick = (e) => {
+      e.stopPropagation(); // ne pas déclencher la lightbox
+      const id = btn.dataset.id;
+      if (!id) return;
+
+      if (userFavorites.has(id)) {
+        userFavorites.delete(id);
+      } else {
+        userFavorites.add(id);
+      }
+      saveUserFavorites();
+      updateFavoriteButtonVisual(btn, userFavorites.has(id));
+      if (showOnlyFavs) {
+        applyUserFavFilter();
+      }
+    };
+  });
+}
+
+function updateFavoriteButtonVisual(btn, active) {
+  if (active) {
+    btn.classList.add("is-active");
+    btn.textContent = "❤️";
+  } else {
+    btn.classList.remove("is-active");
+    btn.textContent = "🤍";
+  }
+}
+
+function applyUserFavFilter() {
+  const cards = document.querySelectorAll(".gallery-grid .card.photo");
+  cards.forEach(card => {
+    const img = card.querySelector("img");
+    const id = img ? img.src : card.dataset.id;
+    if (!showOnlyFavs) {
+      card.style.display = "";
+    } else {
+      card.style.display = isFavorite(id) ? "" : "none";
+    }
+  });
+}
+
+function wireToggleFavsButton() {
+  if (!toggleFavsBtn) return;
+  toggleFavsBtn.addEventListener("click", () => {
+    showOnlyFavs = !showOnlyFavs;
+    if (showOnlyFavs) {
+      toggleFavsBtn.classList.add("btn-toggle-favs-active");
+      toggleFavsBtn.textContent = "Afficher toutes les photos";
+    } else {
+      toggleFavsBtn.classList.remove("btn-toggle-favs-active");
+      toggleFavsBtn.textContent = "Afficher mes favoris ❤️";
+    }
+    applyUserFavFilter();
+  });
+}
+
+/**********************
+ *  À APPELER APRÈS CHAQUE RENDU GALERIE
+ **********************/
+function afterGalleryRender() {
+  wireFavoriteButtons();
+  enableLightbox();
+  applyUserFavFilter();
+}
+
+/**********************
+ *  FILTRES PRINCIPAUX
  **********************/
 async function applyFilters() {
   const club  = clubSelect ? clubSelect.value : 'all';
@@ -373,7 +492,6 @@ async function applyFilters() {
 
   if (club === 'all' && team === 'all') {
     await showDefault();
-    setTimeout(enableLightbox, 200);
     return;
   }
 
@@ -386,7 +504,7 @@ async function applyFilters() {
       total += cards.length;
     }
     if (!total) showInfoMessage("Aucune photo pour ce club.");
-    setTimeout(enableLightbox, 200);
+    afterGalleryRender();
     return;
   }
 
@@ -400,11 +518,10 @@ async function applyFilters() {
       if (!cards.length) showInfoMessage("Aucune photo pour cette équipe.");
       cards.forEach(c => galleryEl.appendChild(c));
     }
-    setTimeout(enableLightbox, 200);
+    afterGalleryRender();
     return;
   }
 
-  // equipe seule
   if (club === 'all' && team !== 'all') {
     let total = 0;
     for (const c of Object.keys(STRUCTURE)) {
@@ -415,7 +532,7 @@ async function applyFilters() {
       }
     }
     if (!total) showInfoMessage("Aucune photo pour cette équipe.");
-    setTimeout(enableLightbox, 200);
+    afterGalleryRender();
   }
 }
 
@@ -423,17 +540,19 @@ async function applyFilters() {
  *  INIT
  **********************/
 async function init() {
+  loadUserFavorites();
+  wireToggleFavsButton();
+
   await showDefault();
-  setTimeout(enableLightbox, 200);
 
   if (clubSelect) clubSelect.addEventListener('change', async () => {
-    matchSelect.value = '_all_';
+    if (matchSelect) matchSelect.value = '_all_';
     await fillMatchSelect(clubSelect.value, teamSelect.value);
     await applyFilters();
   });
 
   if (teamSelect) teamSelect.addEventListener('change', async () => {
-    matchSelect.value = '_all_';
+    if (matchSelect) matchSelect.value = '_all_';
     await fillMatchSelect(clubSelect.value, teamSelect.value);
     await applyFilters();
   });
