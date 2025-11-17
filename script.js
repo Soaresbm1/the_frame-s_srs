@@ -2,7 +2,7 @@
  *  CONFIG GITHUB
  **********************/
 const GH_OWNER  = "Soaresbm1";
-const GH_REPO   = "the_frame-s_srs";
+const GH_REPO   = "the_frame_s_srs";
 const GH_BRANCH = "main";
 
 /**********************
