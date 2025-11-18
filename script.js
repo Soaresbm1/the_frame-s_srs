@@ -204,6 +204,7 @@ function makeCard({ club, team, rawUrl, badge, kind }) {
 }
 
 
+
 /**********************
  *  FAVORIS (dossier full/favorites)
  **********************/
@@ -497,6 +498,78 @@ function updateStats() {
   statsEl.textContent = parts.join(" – ");
 }
 
+function hideRecommendations() {
+  const container = document.getElementById("recommendations");
+  const listEl = document.getElementById("recommendation-list");
+  if (listEl) listEl.innerHTML = "";
+  if (container) container.style.display = "none";
+}
+
+/**
+ * Affiche d'autres matchs/entrainements de la même équipe
+ * clubLabel / teamLabel : labels des selects
+ * currentMatchFolder     : nom du dossier actuellement affiché (ex: vs_X_2025-10-09)
+ */
+async function showRecommendations(clubLabel, teamLabel, currentMatchFolder) {
+  const container = document.getElementById("recommendations");
+  const listEl = document.getElementById("recommendation-list");
+  if (!container || !listEl) return;
+
+  listEl.innerHTML = "";
+
+  // Si pas de contexte précis → rien
+  if (!clubLabel || clubLabel === "all" || !teamLabel || teamLabel === "all" || !currentMatchFolder || currentMatchFolder === "_all_") {
+    container.style.display = "none";
+    return;
+  }
+
+  // Résoudre le vrai dossier GitHub
+  const { realClub, realTeam } = await resolveTeamFolder(clubLabel, teamLabel);
+  if (!realClub || !realTeam) {
+    container.style.display = "none";
+    return;
+  }
+
+  const base = `full/${realClub}/${realTeam}`;
+  const entries = await githubList(base);
+  const dirs = entries.filter(e => e.type === "dir" && e.name !== currentMatchFolder);
+  if (!dirs.length) {
+    container.style.display = "none";
+    return;
+  }
+
+  // Trier (nom décroissant → les plus récents / grands noms en premier)
+  dirs.sort((a, b) => b.name.localeCompare(a.name, undefined, { numeric: true }));
+
+  // On ne propose que les 3 plus pertinents pour ne pas surcharger
+  const subset = dirs.slice(0, 3);
+
+  subset.forEach(d => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "reco-pill";
+    btn.textContent = labelFromFolderName(d.name);
+
+    btn.addEventListener("click", async () => {
+      // On remet le contexte dans les selects
+      if (clubSelect) clubSelect.value = clubLabel;
+      if (teamSelect) teamSelect.value = teamLabel;
+
+      if (matchSelect) {
+        await fillMatchSelect(clubLabel, teamLabel); // s'assurer que l'option existe
+        matchSelect.value = d.name;
+      }
+
+      await applyFilters(); // recharge les photos pour ce match
+    });
+
+    listEl.appendChild(btn);
+  });
+
+  container.style.display = "block";
+}
+
+
 
 function wireToggleFavsButton() {
   if (!toggleFavsBtn) return;
@@ -536,10 +609,16 @@ async function applyFilters() {
 
   clearGallery();
 
-  if (club === 'all' && team === 'all') {
-    await showDefault();
-    return;
+  // Recommandations :
+  // on ne montre des recommandations QUE si un match/entrainement précis est sélectionné
+  if (club !== 'all' && team !== 'all' && match !== '_all_') {
+    await showRecommendations(club, team, match);
+  } else {
+    hideRecommendations();
   }
+
+  // ... puis ton code existant continue ...
+
 
   if (club !== 'all' && team === 'all') {
     let total = 0;

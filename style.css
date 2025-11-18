@@ -399,3 +399,35 @@ figcaption {
 .fav-btn.is-active {
   transform:scale(1.05);
 }
+
+/* RECOMMANDATIONS (autres matchs / entraînements) */
+.recommendations {
+  max-width: 100%;
+  margin-top: 12px;
+}
+
+.recommendations h3 {
+  margin-top: 0;
+  font-size: 1rem;
+}
+
+.recommendation-list {
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  margin-top:8px;
+}
+
+.reco-pill {
+  border-radius:999px;
+  border:1px solid var(--line);
+  background:#fff;
+  padding:4px 10px;
+  font-size:.85rem;
+  cursor:pointer;
+  transition:.2s;
+}
+
+.reco-pill:hover {
+  background:var(--accent);
+}
