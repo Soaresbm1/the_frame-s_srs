@@ -169,6 +169,9 @@ function makeCard({ club, team, rawUrl, badge, kind }) {
   const fig = document.createElement('figure');
   fig.className = 'card photo';
   fig.dataset.id = rawUrl;
+  if (club) fig.dataset.club = club;
+  if (team) fig.dataset.team = team;
+  if (kind) fig.dataset.kind = kind;   // "match" ou "training"
 
   const title = club && team ? `${club} – ${team}` : (club || "Favoris");
   const favActive = isFavorite(rawUrl);
@@ -197,6 +200,7 @@ function makeCard({ club, team, rawUrl, badge, kind }) {
   `;
   return fig;
 }
+
 
 /**********************
  *  FAVORIS (dossier full/favorites)
@@ -456,6 +460,42 @@ function applyUserFavFilter() {
   });
 }
 
+function updateStats() {
+  const statsEl = document.getElementById("gallery-stats");
+  if (!statsEl) return;
+
+  const cards = Array.from(document.querySelectorAll(".gallery-grid .card.photo"));
+  // on compte seulement les cartes visibles (pas filtrées par favoris)
+  const visible = cards.filter(card => card.style.display !== "none");
+
+  const totalPhotos = visible.length;
+
+  let matchCount = 0;
+  let trainingCount = 0;
+
+  visible.forEach(card => {
+    const kind = card.dataset.kind;
+    if (kind === "match") matchCount++;
+    else if (kind === "training") trainingCount++;
+  });
+
+  let parts = [];
+
+  // ex : "24 photos"
+  parts.push(`${totalPhotos} photo${totalPhotos > 1 ? "s" : ""}`);
+
+  // ex : "3 matchs · 1 entraînement"
+  if (matchCount || trainingCount) {
+    const sub = [];
+    if (matchCount) sub.push(`${matchCount} match${matchCount > 1 ? "s" : ""}`);
+    if (trainingCount) sub.push(`${trainingCount} entraînement${trainingCount > 1 ? "s" : ""}`);
+    parts.push(sub.join(" · "));
+  }
+
+  statsEl.textContent = parts.join(" – ");
+}
+
+
 function wireToggleFavsButton() {
   if (!toggleFavsBtn) return;
   toggleFavsBtn.addEventListener("click", () => {
@@ -468,8 +508,10 @@ function wireToggleFavsButton() {
       toggleFavsBtn.textContent = "Afficher mes favoris ❤️";
     }
     applyUserFavFilter();
+    updateStats();
   });
 }
+
 
 /**********************
  *  À APPELER APRÈS CHAQUE RENDU GALERIE
@@ -478,7 +520,9 @@ function afterGalleryRender() {
   wireFavoriteButtons();
   enableLightbox();
   applyUserFavFilter();
+  updateStats();      
 }
+
 
 /**********************
  *  FILTRES PRINCIPAUX

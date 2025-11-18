@@ -348,6 +348,12 @@ figcaption {
   margin-bottom:4px;
 }
 
+.gallery-stats {
+  font-size:0.9rem;
+  color:#555;
+  opacity:0.9;
+}
+
 /* Bouton favoris utilisateur */
 .btn-toggle-favs-active {
   background:#b71c1c;
