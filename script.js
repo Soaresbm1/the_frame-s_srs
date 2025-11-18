@@ -34,6 +34,8 @@ const matchWrap   = document.getElementById('match-container');
 const matchSelect = document.getElementById('match-select');
 const galleryEl   = document.getElementById('gallery');
 const toggleFavsBtn = document.getElementById('toggle-user-favs');
+const downloadZipBtn = document.getElementById('download-zip');
+
 
 /**********************
  *  OUTILS GÉNÉRAUX
@@ -580,6 +582,72 @@ async function applyFilters() {
   }
 }
 
+async function downloadVisibleAsZip() {
+  if (!window.JSZip) {
+    alert("Oups, la librairie JSZip n'est pas chargée. Réessaie plus tard.");
+    return;
+  }
+
+  const cards = Array.from(document.querySelectorAll(".gallery-grid .card.photo"));
+  const visibles = cards.filter(card => card.style.display !== "none");
+
+  if (!visibles.length) {
+    alert("Aucune photo à télécharger.");
+    return;
+  }
+
+  // Bouton en mode "chargement"
+  downloadZipBtn.disabled = true;
+  const oldLabel = downloadZipBtn.textContent;
+  downloadZipBtn.textContent = "Préparation du ZIP...";
+
+  try {
+    const zip = new JSZip();
+    const folder = zip.folder("photos");
+
+    let index = 1;
+    for (const card of visibles) {
+      const img = card.querySelector("img");
+      if (!img) continue;
+
+      const url = img.src;
+      // Nom de fichier à partir de l'URL
+      let filename = url.split("/").pop() || `photo_${index}.jpg`;
+      filename = filename.split("?")[0]; // au cas où il y a un ? dans l'URL
+
+      // Petit feedback dans le bouton
+      downloadZipBtn.textContent = `Téléchargement ${index}/${visibles.length}...`;
+
+      const response = await fetch(url);
+      const blob = await response.blob();
+      folder.file(filename, blob);
+      index++;
+    }
+
+    downloadZipBtn.textContent = "Compression du ZIP...";
+
+    const content = await zip.generateAsync({ type: "blob" });
+
+    // Créer un lien temporaire pour lancer le téléchargement
+    const link = document.createElement("a");
+    const blobUrl = URL.createObjectURL(content);
+    link.href = blobUrl;
+    link.download = "photos.zip";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(blobUrl);
+
+  } catch (err) {
+    console.error(err);
+    alert("Erreur lors de la création du ZIP. Essaie avec moins de photos.");
+  } finally {
+    downloadZipBtn.disabled = false;
+    downloadZipBtn.textContent = oldLabel;
+  }
+}
+
+
 /**********************
  *  INIT
  **********************/
@@ -588,6 +656,11 @@ async function init() {
   wireToggleFavsButton();
 
   await showDefault();
+
+    if (downloadZipBtn) {
+    downloadZipBtn.addEventListener("click", downloadVisibleAsZip);
+  }
+
 
   if (clubSelect) clubSelect.addEventListener('change', async () => {
     if (matchSelect) matchSelect.value = '_all_';

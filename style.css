@@ -367,6 +367,11 @@ figcaption {
   margin-right: 20px;
 }
 
+.gallery-actions {
+  display:flex;
+  gap:8px;
+}
+
 /* Bouton favoris utilisateur */
 .btn-toggle-favs-active {
   background:#b71c1c;

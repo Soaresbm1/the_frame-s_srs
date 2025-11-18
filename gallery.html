@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Galerie – The_frame's_srs</title>
   <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
   <script defer src="script.js"></script>
 </head>
 <body>
@@ -61,12 +62,19 @@
     0 photo
   </div>
 
-  <button id="toggle-user-favs" type="button" class="btn-sm">
-    Afficher mes favoris ❤️
-  </button>
+  <div class="gallery-actions">
+    <button id="download-zip" type="button" class="btn-sm">
+      Télécharger tout (ZIP)
+    </button>
+
+    <button id="toggle-user-favs" type="button" class="btn-sm">
+      Afficher mes favoris ❤️
+    </button>
+  </div>
 </div>
 
 <section class="gallery-grid" id="gallery"></section>
+
 
 
     <!-- GALERIE -->
